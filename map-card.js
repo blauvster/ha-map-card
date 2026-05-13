@@ -20225,8 +20225,10 @@ class MapCard extends i {
       config: {},
       _filterPanelOpen: { state: true },
       _selectedEntityIds: { state: true },
-      _selectedDateStart: { state: true },
-      _selectedDateEnd: { state: true }
+      _rangeStart: { state: true },
+      _rangeEnd: { state: true },
+      _startTime: { state: true },
+      _endTime: { state: true }
     };
   }
 
@@ -20265,10 +20267,14 @@ class MapCard extends i {
   _filterPanelOpen = false;
   /** @type {Set<string>|null} null = not yet initialised */
   _selectedEntityIds = null;
-  /** @type {string|null} */
-  _selectedDateStart = null;
-  /** @type {string|null} */
-  _selectedDateEnd = null;
+  /** @type {Date|null} */
+  _rangeStart = null;
+  /** @type {Date|null} */
+  _rangeEnd = null;
+  /** @type {string} */
+  _startTime = "00:00";
+  /** @type {string} */
+  _endTime = "23:59";
   /** @type {LocalDateRangeService} */
   localDateRangeService;
 
@@ -20439,8 +20445,8 @@ class MapCard extends i {
           border: 1px solid ${borderColor};
           border-radius: 8px;
           padding: 10px 14px;
-          min-width: 200px;
-          max-width: 320px;
+          min-width: 240px;
+          max-width: 360px;
           box-shadow: 0 2px 8px rgba(0,0,0,0.3);
           font-size: 13px;
         "
@@ -20448,23 +20454,32 @@ class MapCard extends i {
         ${this._config.showDateFilter ? b`
           <div style="margin-bottom: 8px;">
             <div style="font-weight: bold; margin-bottom: 6px;">Date Range</div>
-            <div style="margin-bottom: 6px;">
-              <div style="font-size: 11px; margin-bottom: 2px; opacity: 0.7;">Start</div>
-              <input
-                type="datetime-local"
-                .value="${this._selectedDateStart ?? ""}"
-                style="width: 100%; box-sizing: border-box; background: ${isDark ? "#222" : "#fff"}; color: ${color}; border: 1px solid ${borderColor}; border-radius: 4px; padding: 4px 6px;"
-                @change="${this._onDateStartChange}"
-              />
-            </div>
-            <div>
-              <div style="font-size: 11px; margin-bottom: 2px; opacity: 0.7;">End</div>
-              <input
-                type="datetime-local"
-                .value="${this._selectedDateEnd ?? ""}"
-                style="width: 100%; box-sizing: border-box; background: ${isDark ? "#222" : "#fff"}; color: ${color}; border: 1px solid ${borderColor}; border-radius: 4px; padding: 4px 6px;"
-                @change="${this._onDateEndChange}"
-              />
+            <ha-date-range-picker
+              .hass=${this.hass}
+              .startDate=${this._rangeStart ?? new Date()}
+              .endDate=${this._rangeEnd ?? new Date()}
+              @change=${this._onRangeChange}
+              style="width: 100%;"
+            ></ha-date-range-picker>
+            <div style="display: flex; gap: 8px; margin-top: 8px;">
+              <div style="flex: 1;">
+                <div style="font-size: 11px; margin-bottom: 2px; opacity: 0.7;">Start time</div>
+                <input
+                  type="time"
+                  .value="${this._startTime}"
+                  style="width: 100%; box-sizing: border-box; background: ${isDark ? "#222" : "#fff"}; color: ${color}; border: 1px solid ${borderColor}; border-radius: 4px; padding: 4px 6px;"
+                  @change="${this._onStartTimeChange}"
+                />
+              </div>
+              <div style="flex: 1;">
+                <div style="font-size: 11px; margin-bottom: 2px; opacity: 0.7;">End time</div>
+                <input
+                  type="time"
+                  .value="${this._endTime}"
+                  style="width: 100%; box-sizing: border-box; background: ${isDark ? "#222" : "#fff"}; color: ${color}; border: 1px solid ${borderColor}; border-radius: 4px; padding: 4px 6px;"
+                  @change="${this._onEndTimeChange}"
+                />
+              </div>
             </div>
           </div>
         ` : ""}
@@ -20507,26 +20522,33 @@ class MapCard extends i {
     `;
   }
 
-  _onDateStartChange(event) {
-    this._selectedDateStart = event.target.value || null;
+  _onRangeChange(event) {
+    this._rangeStart = event.detail.startDate;
+    this._rangeEnd = event.detail.endDate;
     this._applyDateRange();
   }
 
-  _onDateEndChange(event) {
-    this._selectedDateEnd = event.target.value || null;
+  _onStartTimeChange(event) {
+    this._startTime = event.target.value || "00:00";
+    this._applyDateRange();
+  }
+
+  _onEndTimeChange(event) {
+    this._endTime = event.target.value || "23:59";
     this._applyDateRange();
   }
 
   _applyDateRange() {
-    const startStr = this._selectedDateStart;
-    const endStr = this._selectedDateEnd;
+    if (!this._rangeStart) return;
 
-    // Need at least a start date
-    if (!startStr) return;
+    const [startH, startM] = this._startTime.split(':').map(Number);
+    const [endH, endM] = this._endTime.split(':').map(Number);
 
-    // datetime-local values are already ISO-like (YYYY-MM-DDTHH:mm), parse directly
-    const start = new Date(startStr);
-    const end = endStr ? new Date(endStr) : new Date(new Date(startStr).setHours(23, 59, 59, 999));
+    const start = new Date(this._rangeStart);
+    start.setHours(startH, startM, 0, 0);
+
+    const end = new Date(this._rangeEnd ?? this._rangeStart);
+    end.setHours(endH, endM, 59, 999);
 
     // Drive WMS/tile history layers via the local service
     if (this.localDateRangeService) {
@@ -20555,8 +20577,10 @@ class MapCard extends i {
   }
 
   _resetFilters() {
-    this._selectedDateStart = null;
-    this._selectedDateEnd = null;
+    this._rangeStart = null;
+    this._rangeEnd = null;
+    this._startTime = "00:00";
+    this._endTime = "23:59";
 
     // Restore all entities to visible
     const allIds = new Set(
@@ -20631,8 +20655,10 @@ class MapCard extends i {
     // Reset all filter state when config changes
     this._filterPanelOpen = false;
     this._selectedEntityIds = null;
-    this._selectedDateStart = null;
-    this._selectedDateEnd = null;
+    this._rangeStart = null;
+    this._rangeEnd = null;
+    this._startTime = "00:00";
+    this._endTime = "23:59";
   }
 
   // The height of your card. Home Assistant uses this to automatically
