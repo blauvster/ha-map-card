@@ -5,7 +5,8 @@ export default {
   input: 'src/index.js',
   output: {
     file: 'dist/map-card.js',
-    format: 'cjs'
+    format: 'iife',
+    name: 'MapCard'
   },
   plugins: [nodeResolve(), commonjs()]
 };

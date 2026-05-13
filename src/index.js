@@ -11,6 +11,7 @@ if (!customElements.get("map-card")) {
 }
 
 // Register card so that it appears in the "Card Picker"
+window.customCards = window.customCards || [];
 window.customCards.push({
     name: 'Map Card',
     description: 'A more powerful Map Card for Home Assistant',
