@@ -247,9 +247,9 @@ export default class MapCard extends LitElement {
           <div style="margin-bottom: 8px;">
             <div style="font-weight: bold; margin-bottom: 6px;">Date Range</div>
             <ha-date-range-picker
+              .hass="${this.hass}"
               .startDate="${this._rangeStart ?? new Date(Date.now() - 86400000)}"
               .endDate="${this._rangeEnd ?? new Date()}"
-              .locale="${this.hass?.locale}"
               @change="${this._onDateRangeChange}"
               style="display: block;"
             ></ha-date-range-picker>
