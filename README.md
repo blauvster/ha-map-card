@@ -57,6 +57,11 @@ y: 3.652
 | `focus_follow`        | none                                  | `none`, `refocus`, `contains`, reset the map focused entity's, on each update. Some people call this the `Autofit` feature.                                                              |
 | `map_options`          | {}                                                                                                                           | The `options` for the default [Leaflet Map](https://leafletjs.com/reference.html#map) |
 | `cluster_markers`      | false                                                                                                                        | Enable marker clustering to group nearby entities together. Click the group icon button to toggle clustering on/off. |
+| `show_filter_controls` | false                                                                                                                        | Show an in-card filter button. Opens a panel to filter visible entities and select a date. |
+| `show_person_filter`   | true                                                                                                                         | Show the entity visibility checkboxes inside the filter panel. |
+| `show_date_filter`     | true                                                                                                                         | Show the date picker inside the filter panel. |
+| `filter_only_person_entities` | true                                                                                                                  | When `true`, only `person.*` entities appear in the filter panel checkbox list. Set to `false` to list all configured entities. |
+| `default_visible_entities` |                                                                                                                           | List of entity IDs that are visible on load. If omitted, all entities are visible. |
 | `debug` | false                                                                                                                        | Enable debug messages in console.
 | `plugins`            | []                                                                                                                           | An array of plugin definitions, see: [Plugin Options](#plugin-options), [Available plugins](#available-plugins) and [Developing plugins](#developing-plugins)     |
 
@@ -108,6 +113,36 @@ Either the name of the `entity` or:
 | `position_update_threshold` | 10                               | Distance threshold in meters. Marker position only updates if the entity has moved more than this distance. Prevents unnecessary map updates from GPS drift. Useful for clustered markers. |
 | `circle`               |                                       | Display a circle around the marker. <br/>More details [Circle options](#circle-options) |
 | `geojson`              |                                       | Display GeoJSON data from an entity attribute. <br/>More details [GeoJSON options](#geojson-options) |
+
+### Filter Controls
+
+An optional in-card filter panel lets you toggle entity visibility and pick a date without editing YAML. YAML remains the source of defaults; selections only last until the card is reloaded.
+
+Enable it by adding `show_filter_controls: true` to your card config:
+
+```yaml
+type: custom:map-card
+show_filter_controls: true
+show_person_filter: true
+show_date_filter: true
+filter_only_person_entities: true  # only list person.* entities in the panel
+entities:
+  - person.alice
+  - person.bob
+```
+
+Optionally pre-select a subset of entities on load:
+
+```yaml
+show_filter_controls: true
+default_visible_entities:
+  - person.alice
+entities:
+  - person.alice
+  - person.bob
+```
+
+When a date is selected the card sets `history_start` to `00:00:00` and `history_end` to `23:59:59` for that day and refreshes all entity history paths and WMS/tile history layers. Clicking **Reset** restores entity visibility and history dates to their YAML defaults.
 
 ### History options
 
