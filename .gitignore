@@ -10,6 +10,8 @@ devenv.local.nix
 .pre-commit-config.yaml
 
 dist/*
-!dist/map-card.js
+
+# Keep the built browser bundle tracked
+!map-card.js
 
 .vscode/settings.json

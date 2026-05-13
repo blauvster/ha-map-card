@@ -4,9 +4,8 @@ import { nodeResolve } from '@rollup/plugin-node-resolve';
 export default {
   input: 'src/index.js',
   output: {
-    file: 'dist/map-card.js',
-    format: 'iife',
-    name: 'MapCard'
+    file: 'map-card.js',
+    format: 'es'
   },
   plugins: [nodeResolve(), commonjs()]
 };

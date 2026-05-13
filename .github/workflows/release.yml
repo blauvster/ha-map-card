@@ -23,5 +23,5 @@ jobs:
       name: Release on Github
     - uses: ncipollo/release-action@v1
       with:
-        artifacts: "dist/map-card.js"
+        artifacts: "map-card.js"
         generateReleaseNotes: true
