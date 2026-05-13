@@ -20439,8 +20439,8 @@ class MapCard extends i {
           border: 1px solid ${borderColor};
           border-radius: 8px;
           padding: 10px 14px;
-          min-width: 0;
-          max-width: none;
+          min-width: 220px;
+          max-width: 300px;
           box-shadow: 0 2px 8px rgba(0,0,0,0.3);
           font-size: 13px;
         "
@@ -20448,14 +20448,28 @@ class MapCard extends i {
         ${this._config.showDateFilter ? b`
           <div style="margin-bottom: 8px;">
             <div style="font-weight: bold; margin-bottom: 6px;">Date Range</div>
-            <ha-date-range-picker
-              .hass=${this.hass}
-              .startDate=${this._rangeStart ?? new Date()}
-              .endDate=${this._rangeEnd ?? new Date()}
-              timePicker
-              extendedPresets
-              @change=${this._onRangeChange}
-            ></ha-date-range-picker>
+            <div style="border: 1px solid ${borderColor}; border-radius: 6px; overflow: hidden;">
+              <div style="display: flex; align-items: center; padding: 0 8px; border-bottom: 1px solid ${borderColor}; background: ${isDark ? "#1a1a1a" : "#f5f5f5"}; gap: 6px;">
+                <ha-icon icon="mdi:calendar-start" style="--mdc-icon-size: 14px; opacity: 0.6;"></ha-icon>
+                <span style="font-size: 11px; opacity: 0.7; padding: 4px 0;">Start</span>
+              </div>
+              <input
+                type="datetime-local"
+                .value="${this._toDatetimeLocal(this._rangeStart)}"
+                style="width: 100%; box-sizing: border-box; border: none; outline: none; background: ${isDark ? "#222" : "#fff"}; color: ${color}; padding: 6px 8px; font-size: 13px;"
+                @change="${this._onDateStartChange}"
+              />
+              <div style="display: flex; align-items: center; padding: 0 8px; border-top: 1px solid ${borderColor}; border-bottom: 1px solid ${borderColor}; background: ${isDark ? "#1a1a1a" : "#f5f5f5"}; gap: 6px;">
+                <ha-icon icon="mdi:calendar-end" style="--mdc-icon-size: 14px; opacity: 0.6;"></ha-icon>
+                <span style="font-size: 11px; opacity: 0.7; padding: 4px 0;">End</span>
+              </div>
+              <input
+                type="datetime-local"
+                .value="${this._toDatetimeLocal(this._rangeEnd)}"
+                style="width: 100%; box-sizing: border-box; border: none; outline: none; background: ${isDark ? "#222" : "#fff"}; color: ${color}; padding: 6px 8px; font-size: 13px;"
+                @change="${this._onDateEndChange}"
+              />
+            </div>
           </div>
         ` : ""}
         ${this._config.showPersonFilter && filterableEntities.length > 0 ? b`
@@ -20497,9 +20511,23 @@ class MapCard extends i {
     `;
   }
 
-  _onRangeChange(event) {
-    this._rangeStart = event.detail.startDate;
-    this._rangeEnd = event.detail.endDate;
+  _toDatetimeLocal(date) {
+    if (!date) return "";
+    const d = new Date(date);
+    // Format as YYYY-MM-DDTHH:mm (datetime-local value format)
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  _onDateStartChange(event) {
+    const v = event.target.value;
+    this._rangeStart = v ? new Date(v) : null;
+    this._applyDateRange();
+  }
+
+  _onDateEndChange(event) {
+    const v = event.target.value;
+    this._rangeEnd = v ? new Date(v) : null;
     this._applyDateRange();
   }
 
@@ -20538,8 +20566,6 @@ class MapCard extends i {
   _resetFilters() {
     this._rangeStart = null;
     this._rangeEnd = null;
-    this._startTime = "00:00";
-    this._endTime = "23:59";
 
     // Restore all entities to visible
     const allIds = new Set(
