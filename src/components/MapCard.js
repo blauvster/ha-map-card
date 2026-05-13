@@ -23,7 +23,8 @@ export default class MapCard extends LitElement {
       config: {},
       _filterPanelOpen: { state: true },
       _selectedEntityIds: { state: true },
-      _selectedDate: { state: true }
+      _selectedDateStart: { state: true },
+      _selectedDateEnd: { state: true }
     };
   }
 
@@ -63,7 +64,9 @@ export default class MapCard extends LitElement {
   /** @type {Set<string>|null} null = not yet initialised */
   _selectedEntityIds = null;
   /** @type {string|null} */
-  _selectedDate = null;
+  _selectedDateStart = null;
+  /** @type {string|null} */
+  _selectedDateEnd = null;
   /** @type {LocalDateRangeService} */
   localDateRangeService;
 
@@ -242,13 +245,25 @@ export default class MapCard extends LitElement {
       >
         ${this._config.showDateFilter ? html`
           <div style="margin-bottom: 8px;">
-            <div style="font-weight: bold; margin-bottom: 4px;">Date</div>
-            <input
-              type="date"
-              .value="${this._selectedDate ?? ""}"
-              style="width: 100%; box-sizing: border-box; background: ${isDark ? "#222" : "#fff"}; color: ${color}; border: 1px solid ${borderColor}; border-radius: 4px; padding: 4px 6px;"
-              @change="${this._onDateChange}"
-            />
+            <div style="font-weight: bold; margin-bottom: 6px;">Date Range</div>
+            <div style="margin-bottom: 4px;">
+              <div style="font-size: 11px; margin-bottom: 2px; opacity: 0.7;">Start</div>
+              <input
+                type="date"
+                .value="${this._selectedDateStart ?? ""}"
+                style="width: 100%; box-sizing: border-box; background: ${isDark ? "#222" : "#fff"}; color: ${color}; border: 1px solid ${borderColor}; border-radius: 4px; padding: 4px 6px;"
+                @change="${this._onDateStartChange}"
+              />
+            </div>
+            <div>
+              <div style="font-size: 11px; margin-bottom: 2px; opacity: 0.7;">End</div>
+              <input
+                type="date"
+                .value="${this._selectedDateEnd ?? ""}"
+                style="width: 100%; box-sizing: border-box; background: ${isDark ? "#222" : "#fff"}; color: ${color}; border: 1px solid ${borderColor}; border-radius: 4px; padding: 4px 6px;"
+                @change="${this._onDateEndChange}"
+              />
+            </div>
           </div>
         ` : ""}
         ${this._config.showPersonFilter && filterableEntities.length > 0 ? html`
@@ -290,27 +305,40 @@ export default class MapCard extends LitElement {
     `;
   }
 
-  _onDateChange(event) {
-    const dateStr = event.target.value;
-    this._selectedDate = dateStr || null;
+  _onDateStartChange(event) {
+    this._selectedDateStart = event.target.value || null;
+    this._applyDateRange();
+  }
 
-    if (dateStr) {
-      const start = new Date(dateStr + "T00:00:00");
-      const end = new Date(dateStr + "T23:59:59.999");
+  _onDateEndChange(event) {
+    this._selectedDateEnd = event.target.value || null;
+    this._applyDateRange();
+  }
 
-      // Drive WMS/tile history layers via the local service
-      if (this.localDateRangeService) {
-        this.localDateRangeService.setDateRange(start, end);
-      }
+  _applyDateRange() {
+    const startStr = this._selectedDateStart;
+    const endStr = this._selectedDateEnd;
 
-      // Update entity histories directly (works regardless of usingDateRangeManager)
-      this.entitiesRenderService?.entities.forEach((entity) => {
-        if (entity.historyManager?.hasHistory) {
-          entity.historyManager.setHistoryDates(start, end);
-          entity.historyManager.refreshHistory();
-        }
-      });
+    // Need at least a start date
+    if (!startStr) return;
+
+    const start = new Date(startStr + "T00:00:00");
+    const end = endStr
+      ? new Date(endStr + "T23:59:59.999")
+      : new Date(startStr + "T23:59:59.999");
+
+    // Drive WMS/tile history layers via the local service
+    if (this.localDateRangeService) {
+      this.localDateRangeService.setDateRange(start, end);
     }
+
+    // Update entity histories directly
+    this.entitiesRenderService?.entities.forEach((entity) => {
+      if (entity.historyManager?.hasHistory) {
+        entity.historyManager.setHistoryDates(start, end);
+        entity.historyManager.refreshHistory();
+      }
+    });
   }
 
   _onEntityVisibilityChange(event, entityId) {
@@ -326,7 +354,8 @@ export default class MapCard extends LitElement {
   }
 
   _resetFilters() {
-    this._selectedDate = null;
+    this._selectedDateStart = null;
+    this._selectedDateEnd = null;
 
     // Restore all entities to visible
     const allIds = new Set(
@@ -401,7 +430,8 @@ export default class MapCard extends LitElement {
     // Reset all filter state when config changes
     this._filterPanelOpen = false;
     this._selectedEntityIds = null;
-    this._selectedDate = null;
+    this._selectedDateStart = null;
+    this._selectedDateEnd = null;
   }
 
   // The height of your card. Home Assistant uses this to automatically
