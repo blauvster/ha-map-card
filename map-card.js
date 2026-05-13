@@ -20365,7 +20365,7 @@ class MapCard extends i {
             <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
             <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
             <ha-card header="${this._config.title}">
-              <div id="mapContainer" style="min-height: ${this._config.mapHeight}px">
+              <div id="mapContainer" style="position: relative; min-height: ${this._config.mapHeight}px">
                 <div id="map" style="min-height: ${this._config.mapHeight}px">
                   <ha-icon-button
                     label='Reset focus'
@@ -20394,9 +20394,9 @@ class MapCard extends i {
                     >
                       <ha-icon icon="mdi:filter-variant"></ha-icon>
                     </ha-icon-button>
-                    ${this._filterPanelOpen ? this._renderFilterPanel() : ''}
                   ` : ''}
                 </div>
+                ${this._config.showFilterControls && this._filterPanelOpen ? this._renderFilterPanel() : ''}
               </div>
             </ha-card>
         `;
@@ -20448,28 +20448,13 @@ class MapCard extends i {
         ${this._config.showDateFilter ? b`
           <div style="margin-bottom: 8px;">
             <div style="font-weight: bold; margin-bottom: 6px;">Date Range</div>
-            <div style="border: 1px solid ${borderColor}; border-radius: 6px; overflow: hidden;">
-              <div style="display: flex; align-items: center; padding: 0 8px; border-bottom: 1px solid ${borderColor}; background: ${isDark ? "#1a1a1a" : "#f5f5f5"}; gap: 6px;">
-                <ha-icon icon="mdi:calendar-start" style="--mdc-icon-size: 14px; opacity: 0.6;"></ha-icon>
-                <span style="font-size: 11px; opacity: 0.7; padding: 4px 0;">Start</span>
-              </div>
-              <input
-                type="datetime-local"
-                .value="${this._toDatetimeLocal(this._rangeStart)}"
-                style="width: 100%; box-sizing: border-box; border: none; outline: none; background: ${isDark ? "#222" : "#fff"}; color: ${color}; padding: 6px 8px; font-size: 13px;"
-                @change="${this._onDateStartChange}"
-              />
-              <div style="display: flex; align-items: center; padding: 0 8px; border-top: 1px solid ${borderColor}; border-bottom: 1px solid ${borderColor}; background: ${isDark ? "#1a1a1a" : "#f5f5f5"}; gap: 6px;">
-                <ha-icon icon="mdi:calendar-end" style="--mdc-icon-size: 14px; opacity: 0.6;"></ha-icon>
-                <span style="font-size: 11px; opacity: 0.7; padding: 4px 0;">End</span>
-              </div>
-              <input
-                type="datetime-local"
-                .value="${this._toDatetimeLocal(this._rangeEnd)}"
-                style="width: 100%; box-sizing: border-box; border: none; outline: none; background: ${isDark ? "#222" : "#fff"}; color: ${color}; padding: 6px 8px; font-size: 13px;"
-                @change="${this._onDateEndChange}"
-              />
-            </div>
+            <ha-date-range-picker
+              .startDate="${this._rangeStart ?? new Date(Date.now() - 86400000)}"
+              .endDate="${this._rangeEnd ?? new Date()}"
+              .locale="${this.hass?.locale}"
+              @change="${this._onDateRangeChange}"
+              style="display: block;"
+            ></ha-date-range-picker>
           </div>
         ` : ""}
         ${this._config.showPersonFilter && filterableEntities.length > 0 ? b`
@@ -20519,15 +20504,9 @@ class MapCard extends i {
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
-  _onDateStartChange(event) {
-    const v = event.target.value;
-    this._rangeStart = v ? new Date(v) : null;
-    this._applyDateRange();
-  }
-
-  _onDateEndChange(event) {
-    const v = event.target.value;
-    this._rangeEnd = v ? new Date(v) : null;
+  _onDateRangeChange(event) {
+    this._rangeStart = event.detail.startDate ?? null;
+    this._rangeEnd = event.detail.endDate ?? null;
     this._applyDateRange();
   }
 
