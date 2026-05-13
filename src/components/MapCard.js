@@ -118,6 +118,11 @@ export default class MapCard extends LitElement {
         if (defaults) {
           this.entitiesRenderService.setVisibleEntities(this._selectedEntityIds);
         }
+        // Pre-populate date range with defaults (end = now, start = 24h ago)
+        if (this._config.showDateFilter && !this._rangeStart) {
+          this._rangeEnd = new Date();
+          this._rangeStart = new Date(Date.now() - 86400000);
+        }
       } else {
         this._selectedEntityIds = null;
       }
@@ -362,8 +367,8 @@ export default class MapCard extends LitElement {
   }
 
   _resetFilters() {
-    this._rangeStart = null;
-    this._rangeEnd = null;
+    this._rangeEnd = new Date();
+    this._rangeStart = new Date(Date.now() - 86400000);
 
     // Restore all entities to visible
     const allIds = new Set(
