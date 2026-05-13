@@ -238,7 +238,7 @@ export default class MapCard extends LitElement {
           border-radius: 8px;
           padding: 10px 14px;
           min-width: 200px;
-          max-width: 280px;
+          max-width: 320px;
           box-shadow: 0 2px 8px rgba(0,0,0,0.3);
           font-size: 13px;
         "
@@ -246,10 +246,10 @@ export default class MapCard extends LitElement {
         ${this._config.showDateFilter ? html`
           <div style="margin-bottom: 8px;">
             <div style="font-weight: bold; margin-bottom: 6px;">Date Range</div>
-            <div style="margin-bottom: 4px;">
+            <div style="margin-bottom: 6px;">
               <div style="font-size: 11px; margin-bottom: 2px; opacity: 0.7;">Start</div>
               <input
-                type="date"
+                type="datetime-local"
                 .value="${this._selectedDateStart ?? ""}"
                 style="width: 100%; box-sizing: border-box; background: ${isDark ? "#222" : "#fff"}; color: ${color}; border: 1px solid ${borderColor}; border-radius: 4px; padding: 4px 6px;"
                 @change="${this._onDateStartChange}"
@@ -258,7 +258,7 @@ export default class MapCard extends LitElement {
             <div>
               <div style="font-size: 11px; margin-bottom: 2px; opacity: 0.7;">End</div>
               <input
-                type="date"
+                type="datetime-local"
                 .value="${this._selectedDateEnd ?? ""}"
                 style="width: 100%; box-sizing: border-box; background: ${isDark ? "#222" : "#fff"}; color: ${color}; border: 1px solid ${borderColor}; border-radius: 4px; padding: 4px 6px;"
                 @change="${this._onDateEndChange}"
@@ -322,10 +322,9 @@ export default class MapCard extends LitElement {
     // Need at least a start date
     if (!startStr) return;
 
-    const start = new Date(startStr + "T00:00:00");
-    const end = endStr
-      ? new Date(endStr + "T23:59:59.999")
-      : new Date(startStr + "T23:59:59.999");
+    // datetime-local values are already ISO-like (YYYY-MM-DDTHH:mm), parse directly
+    const start = new Date(startStr);
+    const end = endStr ? new Date(endStr) : new Date(new Date(startStr).setHours(23, 59, 59, 999));
 
     // Drive WMS/tile history layers via the local service
     if (this.localDateRangeService) {
