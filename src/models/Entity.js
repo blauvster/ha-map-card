@@ -66,6 +66,12 @@ export default class Entity {
    */
   _lastSetLatLng;
 
+  /**
+   * Whether this entity's layers are currently shown on the map.
+   * @type {boolean}
+   */
+  visible = true;
+
   constructor(config, hass, map, historyService, dateRangeManager, linkedEntityService, darkMode) {
     this.config = config;
     this.hass = hass;
@@ -264,7 +270,53 @@ export default class Entity {
     }
   }
 
+  /**
+   * Remove this entity's layers from the map.
+   */
+  hide() {
+    this.visible = false;
+    if (this.marker) {
+      this.marker.remove();
+    }
+    if (this.historyManager?.historyLayerGroup && this.map.hasLayer(this.historyManager.historyLayerGroup)) {
+      this.map.removeLayer(this.historyManager.historyLayerGroup);
+    }
+    if (this.circle?.circle && this.map.hasLayer(this.circle.circle)) {
+      this.map.removeLayer(this.circle.circle);
+    }
+    if (this.geoJson?.geoJsonLayer && this.map.hasLayer(this.geoJson.geoJsonLayer)) {
+      this.map.removeLayer(this.geoJson.geoJsonLayer);
+    }
+  }
+
+  /**
+   * Restore this entity's layers onto the map.
+   * @param {L.MarkerClusterGroup|null} clusterGroup
+   */
+  show(clusterGroup = null) {
+    this.visible = true;
+    if (this.marker) {
+      if (clusterGroup) {
+        if (!clusterGroup.hasLayer(this.marker)) {
+          clusterGroup.addLayer(this.marker);
+        }
+      } else {
+        if (!this.map.hasLayer(this.marker)) {
+          this.marker.addTo(this.map);
+        }
+      }
+    }
+    if (this.historyManager?.historyLayerGroup && !this.map.hasLayer(this.historyManager.historyLayerGroup)) {
+      this.map.addLayer(this.historyManager.historyLayerGroup);
+    }
+    if (this.circle?.circle && !this.map.hasLayer(this.circle.circle)) {
+      this.circle.circle.addTo(this.map);
+    }
+    // GeoJson re-renders itself on the next update() call
+  }
+
   async update(clusterGroup = null) {
+    if (!this.visible) return;
     // Only update marker if it exists (not hidden by GeoJSON config)
     if (this.marker) {
       if(this.display == "state" || this.display == "attribute") {

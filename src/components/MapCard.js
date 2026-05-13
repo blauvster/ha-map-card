@@ -4,6 +4,7 @@ import { LitElement, html, css } from "lit";
 import MapConfig from "../configs/MapConfig.js"
 import HaHistoryService from "../services/HaHistoryService.js"
 import HaDateRangeService from "../services/HaDateRangeService.js"
+import LocalDateRangeService from "../services/LocalDateRangeService.js"
 import HaLinkedEntityService from "../services/HaLinkedEntityService.js"
 import HaMapUtilities from "../util/HaMapUtilities.js"
 import Logger from "../util/Logger.js"
@@ -19,7 +20,10 @@ export default class MapCard extends LitElement {
   static get properties() {
     return {
       hass: {},
-      config: {}
+      config: {},
+      _filterPanelOpen: { state: true },
+      _selectedEntityIds: { state: true },
+      _selectedDate: { state: true }
     };
   }
 
@@ -53,6 +57,16 @@ export default class MapCard extends LitElement {
   hasError = false;
   hadError = false;
 
+  // --- Filter state ---
+  /** @type {boolean} */
+  _filterPanelOpen = false;
+  /** @type {Set<string>|null} null = not yet initialised */
+  _selectedEntityIds = null;
+  /** @type {string|null} */
+  _selectedDate = null;
+  /** @type {LocalDateRangeService} */
+  localDateRangeService;
+
   setup() {
     Logger.debug("[MapCard] Setting up map card");
 
@@ -68,11 +82,17 @@ export default class MapCard extends LitElement {
 
     // Setup core history service
     this.historyService = new HaHistoryService(this.hass);
-    // Is history date range enabled?
+    // Is history date range enabled via HA energy panel?
     if (this._config.historyDateSelection) {
       this.dateRangeManager = new HaDateRangeService(this.hass);
     }
-    this.tileLayersService = new TileLayersService(this.map, this._config.tileLayers, this._config.wms, this.urlResolver, this.linkedEntityService, this.dateRangeManager);
+    // Card-local date filter — takes precedence over the energy panel for WMS/tile layers
+    if (this._config.showFilterControls && this._config.showDateFilter) {
+      this.localDateRangeService = new LocalDateRangeService();
+    }
+    // Prefer local date service for tile/WMS layers when available
+    const tileLayersDateManager = this.localDateRangeService ?? this.dateRangeManager;
+    this.tileLayersService = new TileLayersService(this.map, this._config.tileLayers, this._config.wms, this.urlResolver, this.linkedEntityService, tileLayersDateManager);
     this.entitiesRenderService = new EntitiesRenderService(this.map, this.hass, this._config.focusFollow, this._config.entities, this.linkedEntityService, this.dateRangeManager, this.historyService, this._isDarkMode(), this._config.clusterMarkers);
     this.initialViewRenderService = new InitialViewRenderService(this.map, this._config, this.hass, this.entitiesRenderService);
 
@@ -85,6 +105,19 @@ export default class MapCard extends LitElement {
       this.geoJsonRenderService.setup();
       this.entitiesRenderService.setup();
       this.initialViewRenderService.setup();
+
+      // Initialise filter selections (reset each time setup runs, e.g. after setConfig)
+      if (this._config.showFilterControls) {
+        const allIds = this.entitiesRenderService.getFilterableEntities().map((e) => e.id);
+        const defaults = this._config.defaultVisibleEntities;
+        this._selectedEntityIds = new Set(defaults ?? allIds);
+        // Apply initial visibility if a subset is configured
+        if (defaults) {
+          this.entitiesRenderService.setVisibleEntities(this._selectedEntityIds);
+        }
+      } else {
+        this._selectedEntityIds = null;
+      }
 
       this.setupNeeded = false;
       this.render();
@@ -147,6 +180,17 @@ export default class MapCard extends LitElement {
                       <ha-icon icon="mdi:group"></ha-icon>
                     </ha-icon-button>
                   ` : ''}
+                  ${this._config.showFilterControls ? html`
+                    <ha-icon-button
+                      label='Filter'
+                      style='${this._isDarkMode() ? "color:#ffffff;" : "color:#000000;"} position: absolute; top: ${this._config.clusterMarkers ? 155 : 115}px; left: 3px; z-index: 1;'
+                      @click=${this._toggleFilterPanel}
+                      tabindex="0"
+                    >
+                      <ha-icon icon="mdi:filter-variant"></ha-icon>
+                    </ha-icon-button>
+                    ${this._filterPanelOpen ? this._renderFilterPanel() : ''}
+                  ` : ''}
                 </div>
               </div>
             </ha-card>
@@ -160,6 +204,154 @@ export default class MapCard extends LitElement {
   _toggleClustering() {
     this.entitiesRenderService.toggleClustering();
   }
+
+  _toggleFilterPanel() {
+    this._filterPanelOpen = !this._filterPanelOpen;
+  }
+
+  _renderFilterPanel() {
+    const isDark = this._isDarkMode();
+    const bg = isDark ? "rgba(30,30,30,0.95)" : "rgba(255,255,255,0.95)";
+    const color = isDark ? "#ffffff" : "#000000";
+    const borderColor = isDark ? "#444" : "#ccc";
+
+    const filterableEntities = this.entitiesRenderService
+      ? this.entitiesRenderService.getFilterableEntities().filter((e) =>
+          this._config.filterOnlyPersonEntities ? e.id.startsWith("person.") : true
+        )
+      : [];
+
+    return html`
+      <div
+        id="filter-panel"
+        style="
+          position: absolute;
+          top: ${this._config.clusterMarkers ? 195 : 155}px;
+          left: 3px;
+          z-index: 2;
+          background: ${bg};
+          color: ${color};
+          border: 1px solid ${borderColor};
+          border-radius: 8px;
+          padding: 10px 14px;
+          min-width: 200px;
+          max-width: 280px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          font-size: 13px;
+        "
+      >
+        ${this._config.showDateFilter ? html`
+          <div style="margin-bottom: 8px;">
+            <div style="font-weight: bold; margin-bottom: 4px;">Date</div>
+            <input
+              type="date"
+              .value="${this._selectedDate ?? ""}"
+              style="width: 100%; box-sizing: border-box; background: ${isDark ? "#222" : "#fff"}; color: ${color}; border: 1px solid ${borderColor}; border-radius: 4px; padding: 4px 6px;"
+              @change="${this._onDateChange}"
+            />
+          </div>
+        ` : ""}
+        ${this._config.showPersonFilter && filterableEntities.length > 0 ? html`
+          <div style="margin-bottom: 8px;">
+            <div style="font-weight: bold; margin-bottom: 4px;">Entities</div>
+            ${filterableEntities.map((entityConfig) => {
+              const friendlyName =
+                this.hass?.states?.[entityConfig.id]?.attributes?.friendly_name ?? entityConfig.id;
+              const isChecked = this._selectedEntityIds?.has(entityConfig.id) ?? true;
+              return html`
+                <label style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px; cursor: pointer;">
+                  <input
+                    type="checkbox"
+                    .checked="${isChecked}"
+                    @change="${(ev) => this._onEntityVisibilityChange(ev, entityConfig.id)}"
+                  />
+                  <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${friendlyName}">
+                    ${friendlyName}
+                  </span>
+                </label>
+              `;
+            })}
+          </div>
+        ` : ""}
+        <button
+          style="
+            width: 100%;
+            padding: 4px 8px;
+            background: ${isDark ? "#444" : "#e0e0e0"};
+            color: ${color};
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+          "
+          @click="${this._resetFilters}"
+        >Reset</button>
+      </div>
+    `;
+  }
+
+  _onDateChange(event) {
+    const dateStr = event.target.value;
+    this._selectedDate = dateStr || null;
+
+    if (dateStr) {
+      const start = new Date(dateStr + "T00:00:00");
+      const end = new Date(dateStr + "T23:59:59.999");
+
+      // Drive WMS/tile history layers via the local service
+      if (this.localDateRangeService) {
+        this.localDateRangeService.setDateRange(start, end);
+      }
+
+      // Update entity histories directly (works regardless of usingDateRangeManager)
+      this.entitiesRenderService?.entities.forEach((entity) => {
+        if (entity.historyManager?.hasHistory) {
+          entity.historyManager.setHistoryDates(start, end);
+          entity.historyManager.refreshHistory();
+        }
+      });
+    }
+  }
+
+  _onEntityVisibilityChange(event, entityId) {
+    if (!this._selectedEntityIds) return;
+    const next = new Set(this._selectedEntityIds);
+    if (event.target.checked) {
+      next.add(entityId);
+    } else {
+      next.delete(entityId);
+    }
+    this._selectedEntityIds = next;
+    this.entitiesRenderService?.setVisibleEntities(this._selectedEntityIds);
+  }
+
+  _resetFilters() {
+    this._selectedDate = null;
+
+    // Restore all entities to visible
+    const allIds = new Set(
+      this.entitiesRenderService?.getFilterableEntities().map((e) => e.id) ?? []
+    );
+    this._selectedEntityIds = allIds;
+    this.entitiesRenderService?.setVisibleEntities(this._selectedEntityIds);
+
+    // Reset entity histories to their original config dates
+    this.entitiesRenderService?.entities.forEach((entity) => {
+      if (entity.historyManager?.hasHistory && !entity.config.usingDateRangeManager) {
+        entity.historyManager.setHistoryDates(
+          entity.config.historyStart,
+          entity.config.historyEnd
+        );
+        entity.historyManager.refreshHistory();
+      }
+    });
+
+    // Clear the local date service range
+    if (this.localDateRangeService) {
+      this.localDateRangeService.currentRange = null;
+    }
+  }
+
 
   _setupResizeObserver() {
     if (this.resizeObserver) {
@@ -206,6 +398,10 @@ export default class MapCard extends LitElement {
     this.config = config;
     this._config = new MapConfig(config);
     this.setupNeeded = true;
+    // Reset all filter state when config changes
+    this._filterPanelOpen = false;
+    this._selectedEntityIds = null;
+    this._selectedDate = null;
   }
 
   // The height of your card. Home Assistant uses this to automatically
@@ -228,6 +424,8 @@ export default class MapCard extends LitElement {
     this.resizeObserver = undefined;
     this.historyService?.unsubscribe();
     this.dateRangeManager?.disconnect();
+    this.localDateRangeService?.disconnect();
+    this.localDateRangeService = undefined;
     this.linkedEntityService?.disconnect();
     this.pluginsRenderService?.cleanup();
     this.geoJsonRenderService?.cleanup();
@@ -347,6 +545,9 @@ export default class MapCard extends LitElement {
       }
       .leaflet-tile-pane {
         filter: var(--map-filter);
+      }
+      #filter-panel input[type="checkbox"] {
+        cursor: pointer;
       }
     `;
   }

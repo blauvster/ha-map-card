@@ -147,4 +147,28 @@ export default class EntitiesRenderService {
     this.map.fitBounds(bounds);
     Logger.debug("[EntitiesRenderService.setInitialView]: Setting initial view to: " + points.join(","));
   }
+
+  /**
+   * Returns all entity configs that are eligible for the filter panel.
+   * @returns {EntityConfig[]}
+   */
+  getFilterableEntities() {
+    return this.entityConfigs;
+  }
+
+  /**
+   * Show only the entities whose IDs are in the provided set.
+   * All others are hidden.
+   * @param {Set<string>} entityIds
+   */
+  setVisibleEntities(entityIds) {
+    const visible = new Set(entityIds);
+    this.entities.forEach((entity) => {
+      if (visible.has(entity.id)) {
+        entity.show(this.markerClusterGroup);
+      } else {
+        entity.hide();
+      }
+    });
+  }
 }

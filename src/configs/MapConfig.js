@@ -48,6 +48,17 @@ export default class MapConfig {
   clusterMarkers;
 
   /** @type {boolean} */
+  showFilterControls;
+  /** @type {boolean} */
+  showPersonFilter;
+  /** @type {boolean} */
+  showDateFilter;
+  /** @type {boolean} */
+  filterOnlyPersonEntities;
+  /** @type {string[]|null} */
+  defaultVisibleEntities;
+
+  /** @type {boolean} */
   debug = false;
 
   constructor(inputConfig) {
@@ -65,6 +76,13 @@ export default class MapConfig {
 
     // Enable marker clustering (default: false)
     this.clusterMarkers = this._setConfigWithDefault(inputConfig.cluster_markers, false);
+
+    // In-card filter controls (default: all off so existing dashboards are unaffected)
+    this.showFilterControls = inputConfig.show_filter_controls ?? false;
+    this.showPersonFilter = inputConfig.show_person_filter ?? true;
+    this.showDateFilter = inputConfig.show_date_filter ?? true;
+    this.filterOnlyPersonEntities = inputConfig.filter_only_person_entities ?? true;
+    this.defaultVisibleEntities = inputConfig.default_visible_entities ?? null;
 
     // Enable debug messaging. 
     // Card is quite chatty with this enabled.
