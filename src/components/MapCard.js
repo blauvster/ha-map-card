@@ -24,9 +24,7 @@ export default class MapCard extends LitElement {
       _filterPanelOpen: { state: true },
       _selectedEntityIds: { state: true },
       _rangeStart: { state: true },
-      _rangeEnd: { state: true },
-      _startTime: { state: true },
-      _endTime: { state: true }
+      _rangeEnd: { state: true }
     };
   }
 
@@ -69,10 +67,6 @@ export default class MapCard extends LitElement {
   _rangeStart = null;
   /** @type {Date|null} */
   _rangeEnd = null;
-  /** @type {string} */
-  _startTime = "00:00";
-  /** @type {string} */
-  _endTime = "23:59";
   /** @type {LocalDateRangeService} */
   localDateRangeService;
 
@@ -243,8 +237,8 @@ export default class MapCard extends LitElement {
           border: 1px solid ${borderColor};
           border-radius: 8px;
           padding: 10px 14px;
-          min-width: 240px;
-          max-width: 360px;
+          min-width: 0;
+          max-width: none;
           box-shadow: 0 2px 8px rgba(0,0,0,0.3);
           font-size: 13px;
         "
@@ -256,29 +250,10 @@ export default class MapCard extends LitElement {
               .hass=${this.hass}
               .startDate=${this._rangeStart ?? new Date()}
               .endDate=${this._rangeEnd ?? new Date()}
+              timePicker
+              extendedPresets
               @change=${this._onRangeChange}
-              style="width: 100%;"
             ></ha-date-range-picker>
-            <div style="display: flex; gap: 8px; margin-top: 8px;">
-              <div style="flex: 1;">
-                <div style="font-size: 11px; margin-bottom: 2px; opacity: 0.7;">Start time</div>
-                <input
-                  type="time"
-                  .value="${this._startTime}"
-                  style="width: 100%; box-sizing: border-box; background: ${isDark ? "#222" : "#fff"}; color: ${color}; border: 1px solid ${borderColor}; border-radius: 4px; padding: 4px 6px;"
-                  @change="${this._onStartTimeChange}"
-                />
-              </div>
-              <div style="flex: 1;">
-                <div style="font-size: 11px; margin-bottom: 2px; opacity: 0.7;">End time</div>
-                <input
-                  type="time"
-                  .value="${this._endTime}"
-                  style="width: 100%; box-sizing: border-box; background: ${isDark ? "#222" : "#fff"}; color: ${color}; border: 1px solid ${borderColor}; border-radius: 4px; padding: 4px 6px;"
-                  @change="${this._onEndTimeChange}"
-                />
-              </div>
-            </div>
           </div>
         ` : ""}
         ${this._config.showPersonFilter && filterableEntities.length > 0 ? html`
@@ -326,27 +301,11 @@ export default class MapCard extends LitElement {
     this._applyDateRange();
   }
 
-  _onStartTimeChange(event) {
-    this._startTime = event.target.value || "00:00";
-    this._applyDateRange();
-  }
-
-  _onEndTimeChange(event) {
-    this._endTime = event.target.value || "23:59";
-    this._applyDateRange();
-  }
-
   _applyDateRange() {
     if (!this._rangeStart) return;
 
-    const [startH, startM] = this._startTime.split(':').map(Number);
-    const [endH, endM] = this._endTime.split(':').map(Number);
-
     const start = new Date(this._rangeStart);
-    start.setHours(startH, startM, 0, 0);
-
     const end = new Date(this._rangeEnd ?? this._rangeStart);
-    end.setHours(endH, endM, 59, 999);
 
     // Drive WMS/tile history layers via the local service
     if (this.localDateRangeService) {
@@ -455,8 +414,6 @@ export default class MapCard extends LitElement {
     this._selectedEntityIds = null;
     this._rangeStart = null;
     this._rangeEnd = null;
-    this._startTime = "00:00";
-    this._endTime = "23:59";
   }
 
   // The height of your card. Home Assistant uses this to automatically
